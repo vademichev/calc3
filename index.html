@@ -1,0 +1,218 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+	<style>
+	</style>
+	<script>
+		let canvas;
+		let level=1;
+		let img = new Image(); // Создаёт новый элемент изображения
+		img.src = "starship.png"; // Устанавливает путь
+		let img_shot = new Image(); // Создаёт новый элемент изображения
+		img_shot.src = "shot.png"; // Устанавливает путь
+		let img_enemy = new Image(); // Создаёт новый элемент изображения
+		img_enemy.src = "borg.png"; // Устанавливает путь
+		function randInt(min, max) { // Генератор случайного целого min and max включены
+			return Math.floor(Math.random() * (max - min + 1) + min);
+		}
+		let mouse= // Объект для отслеживания мышки
+		{
+			x:0,
+			y:0,
+			leftbutton:0,
+			rightbutton:0,
+		}
+		let objects=[]; // Пустой массив
+		class Bullet { // Javascript class 
+			constructor(x,y,img,imgsize,dir,team,lifetime) { // конструктор, который создает класс
+				this.x = x;
+				this.y = y;
+				this.vx = 0;
+				this.vy = dir; // dir - скорость по y
+				this.img = img; // картинка пули
+				this.size = imgsize; // картинка пули
+				this.team = team; // Пули из одной команды в друг друга не попадают
+				this.lifetime = lifetime;
+			}
+			move() {
+				this.x=this.x+this.vx; // Работаем с переменными объекта
+				this.y=this.y+this.vy;
+				this.lifetime--;
+			}
+			draw(ctx){
+				ctx.drawImage(this.img, this.x-this.size/2,
+				this.y-this.size/2, this.size,this.size);
+			}
+		}
+		class Enemy extends Bullet // Класс наследует пулю, достраивается над ней
+		{
+			constructor(x,y,img,imgsize,dir,team,lifetime) {
+			// конструктор вызывает конструктор базового класса через super
+				super(x,y,img,imgsize,dir,team,lifetime);
+				this.vy=1;
+			}
+			move() {
+				if (starship.x<this.x){ 
+					this.vx=-1;
+				} else {
+					this.vx=1;
+				}
+				this.x=this.x+this.vx; // Работаем с переменными объекта
+				this.y=this.y+this.vy;
+				this.lifetime--;
+				let diap = 580-level;
+				if (level<490){
+					if (randInt(0,diap)==1)
+					{	
+						let b  = new Bullet(this.x,this.y,img_shot,40,3,1,250);
+						b.vx = randInt(-1,1)
+						// Здесь конструируется новый объект Bullet и записывается
+						objects.push(b); // в массив
+					}
+				}
+			}
+		}
+		let starship=
+		{
+			x:350, // Координаты
+			y:500, 
+			vx:1, // Скорости
+			vy:1,
+			size:100, // Размер
+			image:img, // Картинка
+			lifetime:1,
+			team:0, // Команда 0 игрок 1 враг
+			move: function()
+			{
+				this.x=this.x+this.vx; // Работаем с переменными объекта
+				this.y=this.y+this.vy;
+				if (mouse.leftbutton>0)
+				{	
+					let b  = new Bullet(this.x,this.y,img_shot,40,-10,0,50);
+					// Здесь конструируется новый объект Bullet и записывается
+					objects.push(b); // в массив
+				}
+			},
+			moveTowards: function(xt,yt)
+			{
+				let dirx = xt-(this.x+this.size/2.0);
+				let diry = yt-(this.y+this.size/2.0);
+				this.vx = dirx/Math.sqrt(dirx*dirx+diry*diry);
+				this.vy = diry/Math.sqrt(dirx*dirx+diry*diry);
+			},
+			draw: function(ctx){
+				ctx.drawImage(this.image, this.x-this.size/2,
+				this.y-this.size/2, this.size,this.size);
+			}
+		}
+		let rectangle =  // Объект Javascript - JSON нотация
+		{
+			x:10,
+			y:10,
+			sizex:100,
+			sizey:100,
+		};
+		function winLoad()
+		{
+			canvas = document.getElementById("canvas");
+			let timerId = setInterval(reDraw, 10); // Создать таймер
+			canvas.addEventListener("mousemove", mousemove); // Повесили обработчик движения мышки
+			canvas.addEventListener("mousedown", mousemove); // Вызываем ту же функцию на кнопки мышки
+			canvas.addEventListener("mouseup", mousemove);
+			canvas.style.cursor="none"; // Отключить курсор мышки
+			objects.push(starship); // Добросили кораблик в общий массив
+		}
+		function mousemove(event) { // Обработчик мышки
+				let rect = canvas.getBoundingClientRect();
+				mouse.x =  event.clientX - rect.x; // Установили параметры события
+				mouse.y = event.clientY - rect.y;
+				let but = event.buttons;
+				mouse.leftbutton = but & 1; // Первый бит левая кнопка
+				mouse.rightbutton = but & 2; // Второй правая кнопка
+		}
+
+		let e_counter=0;
+		function reDraw()
+		{
+			let ctx = canvas.getContext("2d");
+			ctx.fillStyle="black";
+			ctx.fillRect(0,0,canvas.width,canvas.height);
+			ctx.fillStyle = "green"; // Установить зеленую заливку
+			ctx.fillRect(rectangle.x, rectangle.y, rectangle.sizex, rectangle.sizey); // Нарисовать прямоугольник
+			starship.moveTowards(mouse.x,mouse.y);
+			rectangle.x=rectangle.x+1;
+			rectangle.y=rectangle.y+1;
+			for (item of objects){ // Перебрать все объекты в массиве objects
+				item.move(); // У каждого вызвать move
+				item.draw(ctx); // У каждого вызвать draw
+				for (item2 of objects)
+				{
+					if  (item.team != item2.team)
+					{
+						r1 = {
+						  left: item.x-item.size/2,
+						  top: item.y -item.size/2,
+						  right: item.x+item.size/2,
+						  bottom: item.y+item.size/2,
+						 }
+						 r2 = {
+						  left: item2.x-item2.size/2,
+						  top: item2.y -item2.size/2,
+						  right: item2.x+item2.size/2,
+						  bottom: item2.y+item2.size/2,
+						 }
+						let intersect =  !(r2.left > r1.right || r2.right < r1.left ||
+						r2.top > r1.bottom ||   r2.bottom < r1.top);
+						if (intersect)
+						{
+							item.lifetime=-1;
+							item2.lifetime=-1;
+						}
+					}
+				}
+			}
+			let i=0;
+			while (i<objects.length) // Сборщик мусора
+			{ // Пройти весь массив objects
+				if (objects[i].lifetime<0) // если время жизни отрицательно
+				{
+					objects.splice(i, 1); // грохнуть этот элемент
+				} else
+				{				
+					i++;
+				}
+			}
+			if (level<450){
+				if (randInt(0,(500-level)/5)==1)
+				{
+					let enemy = new Enemy(randInt(0,700),0,img_enemy,140,1,1,10000);
+					objects.push(enemy);
+				}
+			}
+			e_counter++; // увеличиваем счетчик
+			    ctx.fillStyle = "red";
+				ctx.strokeStyle = "#F00";
+				ctx.font = "italic 30pt Arial";
+				ctx.fillText(`Уровень ${Math.round(level/100)}`, 20, 50);
+				if (starship.lifetime<0)
+				{
+					ctx.font = "italic 60pt Arial";
+					ctx.fillText(`GAME OVER`, 90, 300);
+				}else 
+				if (level>570)
+				{
+					ctx.font = "italic 60pt Arial";
+					ctx.fillText(`ПОБЕДА !!!`, 90, 300);
+				}
+			//	ctx.fillText(`Левая = ${mouse.leftbutton}, Правая = ${mouse.rightbutton}`, 20, 80);
+			level=level+0.1;
+		}
+		window.onload=winLoad; // При загрузке окна вызвать winLoad
+	</script>
+</head>
+<body>
+	<h1> Внизу находится холст для рисования </h1>
+	<canvas width="700px" height="700px" id="canvas"></canvas>
+</body>
+</html>
